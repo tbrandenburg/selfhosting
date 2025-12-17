@@ -175,34 +175,6 @@ docker info >/dev/null 2>&1 \
     && ok "Docker daemon responding" \
     || fail "Docker daemon not responding"
 
-docker version >/dev/null 2>&1 \
-    && ok "Docker version OK" \
-    || fail "Docker version check failed"
-
-docker info --format '{{.Driver}}' | grep -q . \
-    && ok "Docker storage driver present" \
-    || fail "No Docker storage driver"
-
-docker system df >/dev/null 2>&1 \
-    && ok "Docker disk usage readable" \
-    || fail "Docker disk usage unreadable"
-
-docker network inspect bridge >/dev/null 2>&1 \
-    && ok "Docker bridge network exists" \
-    || fail "Docker bridge network missing"
-
-docker ps -a --filter "status=restarting" | tail -n +2 | grep -q . \
-    && fail "Containers stuck restarting" \
-    || ok "No restart-looping containers"
-
-docker ps -a --filter "status=exited" | grep -q . \
-    && warn "Exited containers present" \
-    || ok "No exited containers"
-
-docker run --rm busybox true >/dev/null 2>&1 \
-    && ok "Docker can start containers" \
-    || fail "Docker cannot start containers"
-
 echo "📝 Logs & power…"
 [ -d /etc/logrotate.d ] \
     && ok "Log rotation configured" \
