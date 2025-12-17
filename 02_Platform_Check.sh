@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # 02_Platform_Check.sh
 # Container platform readiness check for Docker 🚀
 

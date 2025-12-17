@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # host-docker-readiness.sh
 # POSIX shell – emoji-enhanced output 🚀
 
