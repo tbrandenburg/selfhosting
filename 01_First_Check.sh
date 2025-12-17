@@ -141,6 +141,27 @@ command -v fail2ban-client >/dev/null 2>&1 \
     && ok "Fail2ban available" \
     || warn "Fail2ban not installed"
 
+systemctl is-active --quiet fail2ban \
+    && ok "Fail2ban service running" \
+    || warn "Fail2ban service not running"
+
+systemctl is-enabled --quiet fail2ban \
+    && ok "Fail2ban enabled at boot" \
+    || warn "Fail2ban not enabled at boot"
+
+sudo fail2ban-client status 2>/dev/null | grep -q "Number of jail:" \
+    && ok "Fail2ban jails configured" \
+    || warn "No fail2ban jails configured"
+
+sudo fail2ban-client status 2>/dev/null | grep -q "sshd" \
+    && ok "SSH jail active" \
+    || warn "SSH jail not active"
+
+BANNED_COUNT=$(sudo fail2ban-client status sshd 2>/dev/null | grep "Currently banned:" | awk '{print $3}' || echo "0")
+[ "$BANNED_COUNT" -gt 0 ] 2>/dev/null \
+    && warn "Currently banned IPs: $BANNED_COUNT" \
+    || ok "No currently banned IPs"
+
 echo "�🐳 Docker checks…"
 systemctl is-active --quiet docker \
     && ok "Docker service running" \
