@@ -16,7 +16,7 @@ echo "🔍 Checking required tools…"
 for cmd in \
     awk grep sed cut df free uptime mount date \
     systemctl ip ping getent \
-    docker
+    docker cloudflared
 do
     need_cmd "$cmd"
 done

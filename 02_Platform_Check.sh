@@ -85,10 +85,6 @@ docker network ls | grep -q bridge \
     && ok "Default bridge network exists" \
     || fail "Default bridge network missing"
 
-docker network ls | grep -q nginx \
-    && ok "Nginx integration network exists" \
-    || warn "No nginx integration network found"
-
 # Check if any containers are exposing web ports
 docker ps --format "table {{.Names}}\t{{.Ports}}" | grep -E "(80|443|8080|3000|8000|8888)" >/dev/null 2>&1 \
     && ok "Web containers detected" \
