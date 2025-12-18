@@ -14,14 +14,11 @@ check:
 
 # Start cloudflared tunnel service
 serve: check
+	@echo "🚀 Starting tunnel service..."
 	./04_Create_Tunnel.sh
 
 # Complete integration test: check + serve + endpoint testing
-test: check
-	@echo ""
-	@echo "🚀 Starting tunnel service..."
-	./04_Create_Tunnel.sh
-	@echo ""
+test: serve
 	@echo "🧪 Testing configured endpoints..."
 	./05_Endpoint_Test.sh
 

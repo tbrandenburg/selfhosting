@@ -40,7 +40,7 @@ if [ "$1" = "status" ]; then
     if [ -f "$CONFIG_FILE" ]; then
         info "Active tunnel configuration: $CONFIG_FILE"
         echo "📋 Configured domains:"
-        grep -E "hostname.*tb-cloudlab" "$CONFIG_FILE" | while read -r line; do
+        grep "hostname:" "$CONFIG_FILE" | while read -r line; do
             DOMAIN=$(echo "$line" | sed 's/.*hostname:[[:space:]]*\([^[:space:]]*\).*/\1/')
             SERVICE=$(grep -A1 "hostname.*$DOMAIN" "$CONFIG_FILE" | grep "service:" | sed 's/.*service:[[:space:]]*\([^[:space:]]*\).*/\1/')
             echo "   • $DOMAIN → $SERVICE"
@@ -77,8 +77,24 @@ if systemctl list-unit-files | grep -q cloudflared; then
     if systemctl is-active --quiet cloudflared; then
         ok "Cloudflare tunnel service active"
         echo "📋 Configured domains:"
-        echo "   • jupyter.tb-cloudlab.cloudflareaccess.com → localhost:8888"
-        echo "   • web.tb-cloudlab.cloudflareaccess.com → localhost:8000"
+        # Read actual domains from config file dynamically
+        CONFIG_FILE="/etc/cloudflared/config.yml"
+        if [ ! -f "$CONFIG_FILE" ]; then
+            CONFIG_FILE="$HOME/.cloudflared/config.yml"
+        fi
+        
+        if [ -f "$CONFIG_FILE" ]; then
+            grep -A1 "hostname:" "$CONFIG_FILE" | grep -v "^--" | while read -r line; do
+                if echo "$line" | grep -q "hostname:"; then
+                    HOSTNAME=$(echo "$line" | sed 's/.*hostname:[[:space:]]*\([^[:space:]]*\).*/\1/')
+                    read -r service_line
+                    SERVICE=$(echo "$service_line" | sed 's/.*service:[[:space:]]*\([^[:space:]]*\).*/\1/')
+                    echo "   • $HOSTNAME → $SERVICE"
+                fi
+            done
+        else
+            echo "   • (domains from config file)"
+        fi
         echo ""
         echo "🔧 Service management:"
         echo "   • Status: sudo systemctl status cloudflared"

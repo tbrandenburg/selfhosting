@@ -15,8 +15,14 @@ Internet → Cloudflare Edge (SSL) → cloudflared → Local Apps (8888, 8000)
 - **No reverse proxy**: Simplified architecture with direct port mapping
 
 ### Domain Configuration
-- `jupyter.tb-cloudlab.cloudflareaccess.com` → `localhost:8888` (JupyterLab)
-- `web.tb-cloudlab.cloudflareaccess.com` → `localhost:8000` (Web Application)
+- `app1.yourdomain.com` → `localhost:8888` (JupyterLab)
+- `app2.yourdomain.com` → `localhost:8000` (Web Application)
+
+> **Access URLs:**
+> - **Application 1**: https://app1.yourdomain.com
+> - **Application 2**: https://app2.yourdomain.com
+>
+> **Note**: Replace `yourdomain.com` with your actual domain configured in `/etc/cloudflared/config.yml`.
 
 ## System Components
 
@@ -60,7 +66,7 @@ Manages Cloudflare tunnel lifecycle:
 - **Zero Configuration**: No local SSL certificates required
 
 **Key Features:**
-- Automatic SSL certificate management (wildcard `*.cloudflareaccess.com`)
+- Automatic SSL certificate management for your custom domain
 - DDoS protection and global CDN acceleration
 - No firewall port configuration required (outbound only)
 - Built-in access control via Cloudflare Access (optional)
@@ -68,7 +74,7 @@ Manages Cloudflare tunnel lifecycle:
 ## SSL/TLS Architecture
 
 **Cloudflare Edge Termination:**
-- **Certificate**: Wildcard `*.cloudflareaccess.com` (Google Trust Services)
+- **Certificate**: Auto-generated for your custom domain via Cloudflare
 - **Protocols**: TLS 1.2, 1.3 with modern cipher suites
 - **Management**: Automatic renewal and deployment
 - **Performance**: Global edge optimization
@@ -129,6 +135,25 @@ The check scripts validate the complete stack:
 
 All scripts must pass for the system to be considered ready for production use.
 
+### Domain Migration
+If you're currently using `*.cloudflareaccess.com` domains, migrate to your own domain:
+
+```bash
+# 1. Run the domain setup guide
+./07_Own_Domain_Setup.sh
+
+# 2. Add your domain to Cloudflare dashboard
+# 3. Create DNS CNAME records pointing to your tunnel
+# 4. Update /etc/cloudflared/config.yml with your domain
+# 5. Restart tunnel: sudo systemctl restart cloudflared
+```
+
+**Benefits of custom domain:**
+- ✅ No certificate expiration issues
+- ✅ Professional appearance  
+- ✅ Full DNS control
+- ✅ Cloudflare security features
+
 ## File Structure
 
 ```
@@ -158,10 +183,10 @@ All scripts must pass for the system to be considered ready for production use.
 **Direct Routing Setup:**
 1. **Add to tunnel config** (`/etc/cloudflared/config.yml`):
    ```yaml
-   - hostname: newapp.tb-cloudlab.cloudflareaccess.com
+   - hostname: newapp.yourdomain.com
      service: http://localhost:9000
    ```
-2. **Configure DNS** in Cloudflare Dashboard
+2. **Configure DNS** in Cloudflare Dashboard (CNAME to TUNNEL-ID.cfargotunnel.com)
 3. **Start your application** on the specified port
 4. **Restart tunnel service**: `sudo systemctl restart cloudflared`
 
