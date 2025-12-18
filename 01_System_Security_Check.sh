@@ -80,6 +80,37 @@ getent hosts example.com >/dev/null 2>&1 \
     && ok "DNS resolution works" \
     || fail "DNS resolution failed"
 
+# DNS Configuration Analysis
+echo "🔍 DNS configuration analysis…"
+CURRENT_DNS=$(resolvectl status | grep "DNS Servers:" | head -1 | awk '{print $3}' | sed 's/#.*//')
+if [[ "$CURRENT_DNS" =~ ^192\.168\.|^10\.|^172\.(1[6-9]|2[0-9]|3[0-1])\. ]]; then
+    warn "Using local DNS ($CURRENT_DNS) - may have slower updates"
+    echo "💡 Consider using public DNS: 1.1.1.1 (Cloudflare) or 8.8.8.8 (Google)"
+elif [[ "$CURRENT_DNS" =~ ^1\.1\.1\.1|^8\.8\.8\.8|^8\.8\.4\.4|^1\.0\.0\.1$ ]]; then
+    ok "Using optimized public DNS: $CURRENT_DNS"
+else
+    ok "Using external DNS server: $CURRENT_DNS"
+fi
+
+# Test DNS responsiveness
+if [ -n "$CURRENT_DNS" ]; then
+    LOCAL_TIME=$(dig +short +time=2 cloudflare.com @"$CURRENT_DNS" 2>/dev/null | wc -l)
+    if [ "$LOCAL_TIME" -gt 0 ]; then
+        ok "Primary DNS server responding correctly"
+    else
+        warn "Primary DNS server not responding properly"
+        # Test fallback
+        FALLBACK_TEST=$(dig +short +time=1 cloudflare.com @1.1.1.1 2>/dev/null | wc -l)
+        if [ "$FALLBACK_TEST" -gt 0 ]; then
+            ok "Fallback DNS servers available"
+        else
+            fail "DNS resolution issues detected"
+        fi
+    fi
+else
+    warn "Could not detect current DNS server"
+fi
+
 ping -c1 -W1 1.1.1.1 >/dev/null 2>&1 \
     && ok "Outbound connectivity works" \
     || fail "No outbound connectivity"
@@ -104,14 +135,6 @@ sudo ufw status 2>/dev/null | grep -q "80/tcp" \
 sudo ufw status 2>/dev/null | grep -q "443" \
     && ok "HTTPS port (443) allowed" \
     || warn "HTTPS port (443) not allowed"
-
-sudo ufw status 2>/dev/null | grep -q "8000" \
-    && ok "Port 8000 allowed" \
-    || warn "Port 8000 not allowed"
-
-sudo ufw status 2>/dev/null | grep -q "8888" \
-    && ok "Port 8888 allowed" \
-    || warn "Port 8888 not allowed"
 
 sudo ufw status verbose 2>/dev/null | grep "Default:" | grep -q "deny (incoming)" \
     && ok "Default incoming policy is deny" \

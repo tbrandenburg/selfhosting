@@ -207,6 +207,173 @@ If you're currently using `*.cloudflareaccess.com` domains, migrate to your own 
 - ✅ **DDoS Protection**: Enterprise-grade protection included
 - ✅ **Free SSL**: Wildcard certificates with automatic renewal
 
+## Troubleshooting
+
+### Common Issues
+
+#### 1. Domain Not Resolving (HTTP 000000 / Connection Timeout)
+
+**Symptoms:**
+- `curl https://subdomain.yourdomain.com` returns `Could not resolve host`
+- Endpoint tests show `HTTP 000000`
+- `nslookup subdomain.yourdomain.com` returns `NXDOMAIN`
+
+**Root Cause:** DNS record missing for subdomain
+
+**Solution:**
+```bash
+# Check if DNS record exists
+dig +short subdomain.yourdomain.com @8.8.8.8
+
+# If empty, add DNS record using cloudflared CLI (see DNS Management section)
+# sudo cloudflared tunnel route dns TUNNEL_ID subdomain
+# OR manually add in Cloudflare Dashboard
+```
+
+#### 2. Local DNS Cache Issues
+
+**Symptoms:**
+- External DNS servers resolve domain but local doesn't
+- `dig +short domain @8.8.8.8` works but `dig +short domain` fails
+
+**Solution:**
+```bash
+# Flush local DNS cache
+sudo resolvectl flush-caches
+sudo systemctl restart systemd-resolved
+
+# Verify resolution
+nslookup subdomain.yourdomain.com
+```
+
+#### 3. Service Not Running on Expected Port
+
+**Symptoms:**
+- DNS resolves correctly but tunnel shows HTTP errors
+- Local curl to `http://localhost:PORT` fails
+
+**Solution:**
+```bash
+# Check if service is running
+sudo netstat -tlnp | grep :PORT
+ps aux | grep PORT
+
+# Test local connectivity
+curl -i http://localhost:PORT
+timeout 5 nc -zv localhost PORT
+```
+
+#### 4. Tunnel Connection Issues
+
+**Symptoms:**
+- Tunnel service running but connections fail
+- Multiple connection errors in logs
+
+**Solution:**
+```bash
+# Check tunnel status
+sudo systemctl status cloudflared
+sudo journalctl -u cloudflared --since "5 minutes ago"
+
+# Restart tunnel service
+sudo systemctl restart cloudflared
+
+# Verify tunnel registration
+sudo cloudflared tunnel info TUNNEL_NAME
+```
+
+### DNS Management via cloudflared CLI
+
+#### Adding DNS Records for New Subdomains
+
+When adding a new subdomain to your tunnel configuration, you must also create the corresponding DNS record:
+
+```bash
+# 1. First, get your tunnel ID
+sudo cloudflared tunnel list
+
+# 2. Add DNS record for your subdomain
+sudo cloudflared tunnel route dns TUNNEL_ID subdomain
+
+# Examples:
+sudo cloudflared tunnel route dns nuc7 app3
+sudo cloudflared tunnel route dns nuc7 api
+sudo cloudflared tunnel route dns nuc7 made
+```
+
+#### Complete Workflow for New Applications
+
+```bash
+# 1. Add to tunnel configuration
+sudo nano /etc/cloudflared/config.yml
+# Add:
+# - hostname: newapp.yourdomain.com
+#   service: http://localhost:9000
+
+# 2. Create DNS record
+sudo cloudflared tunnel route dns TUNNEL_ID newapp
+
+# 3. Restart tunnel service
+sudo systemctl restart cloudflared
+
+# 4. Test configuration
+./05_Endpoint_Test.sh
+```
+
+#### Managing DNS Records
+
+```bash
+# List all DNS routes for a tunnel
+sudo cloudflared tunnel route dns TUNNEL_ID
+
+# Remove a DNS record
+sudo cloudflared tunnel route ip delete TUNNEL_ID subdomain
+
+# Verify DNS propagation
+dig +short newapp.yourdomain.com @8.8.8.8
+dig +short newapp.yourdomain.com @1.1.1.1
+```
+
+### Debug Commands
+
+#### DNS Diagnosis
+```bash
+# Test domain resolution with different DNS servers
+dig +short subdomain.yourdomain.com @8.8.8.8      # Google DNS
+dig +short subdomain.yourdomain.com @1.1.1.1      # Cloudflare DNS
+dig +short subdomain.yourdomain.com               # Local DNS
+
+# Check if domain points to Cloudflare
+dig +short subdomain.yourdomain.com | grep -E "(104\.2[1-2]\.|172\.6[4-9]\.|198\.41\.)"
+```
+
+#### Connectivity Testing
+```bash
+# Test local service
+curl -i http://localhost:PORT
+timeout 5 nc -zv localhost PORT
+
+# Test tunnel endpoint with timeout
+timeout 10 curl -s -o /dev/null -w "HTTP %{http_code}\n" https://subdomain.yourdomain.com
+
+# Test with verbose output
+curl -v https://subdomain.yourdomain.com
+```
+
+#### Service Diagnostics
+```bash
+# Check tunnel service
+sudo systemctl status cloudflared
+sudo journalctl -u cloudflared --since "10 minutes ago"
+
+# Check application service
+ps aux | grep PORT
+sudo netstat -tlnp | grep :PORT
+
+# Monitor logs in real-time
+sudo journalctl -u cloudflared -f
+```
+
 ## Status Indicators
 
 - ✅ **READY**: Component is properly configured and operational
